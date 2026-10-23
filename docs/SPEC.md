@@ -4,6 +4,8 @@ Paquete Python expuesto como `from baku import workflows`. Runtime único (async
 
 Dependencias: `baku-config`, `nats-py`, `aiohttp`, `PyJWT`, `croniter`.
 
+Guías: [DEVELOP.md](DEVELOP.md) (integrar en otro proyecto), [AGENTS.md](../AGENTS.md) (IA).
+
 ---
 
 ## 1. Arranque
@@ -63,14 +65,14 @@ Errores de negocio: convención compatible con servicios Baku existentes, p. ej.
 ### 2.2 Decorador NATS
 
 ```python
-@workflows.nats(match={"data.worker_name": "gps-ingest-worker"})
+@workflows.nats("device.telemetry.ingest", match={"data.worker_name": "gps-ingest-worker"})
 async def telemetry_ingest(payload: dict) -> dict:
     ...
 ```
 
+- **Primer argumento (`workflow_id`):** identificador estable del workflow (string).
 - **match:** filtra el mensaje entrante (envelope legacy o interno; ver §4).
-- **id** del workflow: si no se pasa, derivar de `match` (p. ej. `gps-ingest-worker` → `gps.ingest.worker` o tabla configurable en v1).
-- Subject y queue group: variables de entorno (§5).
+- Subject de suscripción y queue group: variables de entorno (§5).
 - Tras el handler, el framework publica resultado para correlación (p. ej. `workflows.jobs.result` + `job_id`) cuando el trigger lo exige.
 
 ### 2.3 Decorador schedule
