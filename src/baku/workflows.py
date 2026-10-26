@@ -12,6 +12,7 @@ import json
 import jwt
 import logging
 import nats
+import uuid
 
 _WRITABLE_METHODS = frozenset({"POST", "PATCH", "PUT", "DELETE"})
 
@@ -86,6 +87,31 @@ def _decode_reply(data):
     return json.loads(data.decode("utf-8"))
 
 
+def _nest_rpc_envelope(pattern, data):
+    return {
+        "id": str(uuid.uuid4()),
+        "pattern": pattern,
+        "data": data,
+    }
+
+
+def _unwrap_nest_reply(parsed):
+    if parsed is None:
+        return None
+    if not isinstance(parsed, dict):
+        return parsed
+    err = parsed.get("err")
+    if err is not None:
+        if isinstance(err, dict):
+            message = err.get("message") or str(err)
+        else:
+            message = str(err)
+        raise RuntimeError(message)
+    if "response" in parsed:
+        return parsed["response"]
+    return parsed
+
+
 async def request(subject, payload):
     if _nc is None:
         raise RuntimeError("NATS is not connected")
@@ -103,6 +129,29 @@ def request_sync(subject, payload):
     except RuntimeError:
         return asyncio.run(request(subject, payload))
     raise RuntimeError("request_sync cannot be used inside a running event loop; use await request")
+
+
+async def request_nest(pattern, payload):
+    """Request-reply to a NestJS @MessagePattern handler (NATS transport envelope)."""
+    if _nc is None:
+        raise RuntimeError("NATS is not connected")
+    envelope = _nest_rpc_envelope(pattern, payload)
+    msg = await _nc.request(
+        pattern,
+        json.dumps(envelope).encode("utf-8"),
+        timeout=NATS_REQUEST_TIMEOUT,
+    )
+    return _unwrap_nest_reply(_decode_reply(msg.data))
+
+
+def request_nest_sync(pattern, payload):
+    try:
+        asyncio.get_running_loop()
+    except RuntimeError:
+        return asyncio.run(request_nest(pattern, payload))
+    raise RuntimeError(
+        "request_nest_sync cannot be used inside a running event loop; use await request_nest"
+    )
 
 
 def _register_http(method, path, handler):

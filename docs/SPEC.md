@@ -88,49 +88,38 @@ async def expire_critical_alerts(_ctx=None) -> dict:
 
 ---
 
-## 3. Request-reply (`workflows.request`)
+## 3. Request-reply
 
-Uso desde handlers o dominio del servicio producto. **Sin** `nats-py` en el código producto.
+Uso desde handlers o dominio del servicio producto. **Sin** `nats-py` en el código producto. Timeout vía `DEVICES_COMMAND_TIMEOUT`.
+
+### 3.1 Raw JSON (`workflows.request` / `request_sync`)
+
+El cuerpo NATS es el `payload` tal cual (JSON). Para listeners que no usan el transporte Nest.
 
 ```python
 result = await workflows.request("devices.command", payload)
-result = workflows.request_sync("collections", {"action": "devices.search", "query": payload})
+result = workflows.request_sync("some.subject", {"key": "value"})
 ```
 
 - **Primer argumento:** subject NATS (string).
-- **Segundo argumento:** `payload` serializado a JSON (dict de negocio del producto).
-- **Retorno:** cuerpo JSON de la respuesta NATS (`dict`, `list`, etc.).
+- **Segundo argumento:** dict serializado a JSON.
+- **Retorno:** JSON decodificado de la respuesta (`dict`, `list`, etc.).
 
-El runtime solo hace **request-reply** al tópico indicado (timeout vía `DEVICES_COMMAND_TIMEOUT`). No interpreta `collections`, `devices` ni el contenido del payload; eso es contrato entre el servicio producto y quien escucha cada subject.
+### 3.2 Nest `@MessagePattern` (`workflows.request_nest` / `request_nest_sync`)
 
-### Subject `collections`
+Para servicios NestJS con `Transport.NATS` y `@MessagePattern(pattern)`. El runtime envía el envelope estándar y desenvuelve la respuesta:
 
-Subject fijo: `"collections"`. El payload incluye `action` (`<colección>.<operación>`).
-
-| Operación | `action` | Campos | Retorno |
-|-----------|----------|--------|---------|
-| search | `alerts.search` | `query` (filtros: `disabled`, `limit`, `order`, …) | `list[dict]` |
-| create | `traffic.create` | `data` (documento) | `dict` |
-| update | `alerts.update` | `query` (p. ej. `id` uuid o lista) + `data` | `{ "updated": N }` si varios ids |
+- **Request:** `{ "id": "<uuid>", "pattern": "<pattern>", "data": <payload> }` en el subject `<pattern>`.
+- **Reply:** retorna el campo `response`; si viene `err`, lanza `RuntimeError` con el mensaje.
 
 ```python
-alerts = await workflows.request(
-    "collections",
-    {"action": "alerts.search", "query": {"disabled": False, "limit": 500}},
-)
-await workflows.request(
-    "collections",
-    {
-        "action": "alerts.update",
-        "query": {"id": ["<uuid>", "..."]},
-        "data": {"disabled": True, "disabled_at": "...", "disabled_reason": "..."},
-    },
-)
+rows = await workflows.request_nest("my.pattern", {"action": "foo.search", "query": {}})
+rows = workflows.request_nest_sync("my.pattern", payload)
 ```
 
-Tipos en documentos y en query coinciden con el mantenedor (p. ej. `disabled` es `bool`).
+El runtime no interpreta el contenido de `data`; es contrato entre el servicio producto y el handler Nest.
 
-### Subjects gateway y otros servicios
+### Subjects gateway y otros servicios (raw)
 
 ```python
 result = await workflows.request("devices.command", {
@@ -215,5 +204,5 @@ Contratos REST/NATS de dominio Vigia: SPEC de ese repositorio.
 Mismo layout que **`baku-api`**: un solo módulo en el paquete `baku`.
 
 ```text
-src/baku/workflows.py   # decoradores, run(), request / request_sync
+src/baku/workflows.py   # decoradores, run(), request / request_nest
 ```

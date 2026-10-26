@@ -68,10 +68,10 @@ Handlers NATS (legacy dispatch): reciben solo `payload` (no el envelope); el run
 
 ## Llamar a otros servicios
 
-Usar **solo** `workflows.request` / `request_sync` — no importar `nats-py` en el producto.
+Usar **solo** `workflows.request` / `request_sync` (JSON crudo) o `request_nest` / `request_nest_sync` (handlers Nest) — no importar `nats-py` en el producto.
 
 ```python
-rows = await workflows.request("collections", {
+rows = await workflows.request_nest("collections", {
     "action": "alerts.search",
     "query": {"disabled": False, "limit": 500},
 })
@@ -79,7 +79,7 @@ rows = await workflows.request("collections", {
 
 Otros subjects (p. ej. `devices.command`): contrato con el listener; timeout `DEVICES_COMMAND_TIMEOUT`.
 
-`request_sync` solo fuera de un event loop ya activo.
+`request_sync` / `request_nest_sync` solo fuera de un event loop ya activo.
 
 ## Variables de entorno
 

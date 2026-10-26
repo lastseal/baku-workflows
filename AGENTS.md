@@ -21,7 +21,7 @@ Fuente de verdad: `docs/SPEC.md` y `src/baku/workflows.py`.
 
 ## Al cambiar este repositorio
 
-- Mantener API pública: `get`, `post`, `patch`, `put`, `delete`, `nats`, `schedule`, `run`, `request`, `request_sync`.
+- Mantener API pública: `get`, `post`, `patch`, `put`, `delete`, `nats`, `schedule`, `run`, `request`, `request_sync`, `request_nest`, `request_nest_sync`.
 - Cualquier cambio de contrato → actualizar `docs/SPEC.md` en el mismo cambio.
 - Layout: un módulo principal `src/baku/workflows.py` (mismo criterio que `baku-api`).
 - Tests: pytest en el paquete; el consumidor prueba sus handlers.
@@ -51,7 +51,7 @@ async def ingest(payload: dict):
 
 @workflows.schedule(id="alerts.expire_critical")
 async def job():
-    return await workflows.request("collections", {"action": "...", "query": {}})
+    return await workflows.request_nest("collections", {"action": "...", "query": {}})
 ```
 
 ## Snippet para repos consumidores
