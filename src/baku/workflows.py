@@ -296,9 +296,8 @@ async def _schedule_loop():
 
 async def _async_main():
     global _nc
-    _nc = await nats.connect(_nats_url())
-
     if _NATS_HANDLERS:
+        _nc = await nats.connect(_nats_url())
         await _nc.subscribe(DISPATCH_SUBJECT, queue=NATS_QUEUE_GROUP, cb=_on_dispatch)
         logging.info(
             "NATS dispatch %s queue=%s handlers=%s",
